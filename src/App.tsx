@@ -141,7 +141,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="font-display font-black text-xl tracking-tight leading-none bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-500 bg-clip-text text-transparent">
-                CINEBOX
+                일일 박스오피스 랭킹
               </h1>
               <p className="text-[10px] font-mono tracking-widest text-slate-400 dark:text-slate-500 uppercase">
                 Korean Box office list
