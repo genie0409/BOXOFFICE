@@ -13,6 +13,13 @@ export default function MovieDetailModal({ movieCd, onClose }: MovieDetailModalP
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [keyword1, setKeyword1] = useState<string>("");
+  const [keyword2, setKeyword2] = useState<string>("");
+  const [keyword3, setKeyword3] = useState<string>("");
+  const [reviewText, setReviewText] = useState<string>("");
+  const [generating, setGenerating] = useState<boolean>(false);
+  const [generatorError, setGeneratorError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!movieCd) {
       setMovieInfo(null);
@@ -42,6 +49,28 @@ export default function MovieDetailModal({ movieCd, onClose }: MovieDetailModalP
     };
 
     fetchMovieDetail();
+
+    // Restores review and keywords from LocalStorage for the current movie code
+    const savedReview = localStorage.getItem(`movie_review_${movieCd}`) || "";
+    setReviewText(savedReview);
+    const savedKeywords = localStorage.getItem(`movie_keywords_${movieCd}`);
+    if (savedKeywords) {
+      try {
+        const [k1, k2, k3] = JSON.parse(savedKeywords);
+        setKeyword1(k1 || "");
+        setKeyword2(k2 || "");
+        setKeyword3(k3 || "");
+      } catch (e) {
+        setKeyword1("");
+        setKeyword2("");
+        setKeyword3("");
+      }
+    } else {
+      setKeyword1("");
+      setKeyword2("");
+      setKeyword3("");
+    }
+    setGeneratorError(null);
   }, [movieCd]);
 
   // Prevent background scrolling when modal is open
@@ -55,6 +84,51 @@ export default function MovieDetailModal({ movieCd, onClose }: MovieDetailModalP
       document.body.style.overflow = "";
     };
   }, [movieCd]);
+
+  const handleGenerateReview = async () => {
+    if (!movieInfo) return;
+    const k1 = keyword1.trim();
+    const k2 = keyword2.trim();
+    const k3 = keyword3.trim();
+
+    if (!k1 || !k2 || !k3) {
+      setGeneratorError("3가지 키워드를 모두 입력해 주세요. (예: 영상미, 연출, 최고)");
+      return;
+    }
+
+    setGenerating(true);
+    setGeneratorError(null);
+
+    try {
+      const response = await fetch("/api/generate-review", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          movieTitle: movieInfo.movieNm,
+          keywords: [k1, k2, k3],
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "감상평 생성에 실패했습니다.");
+      }
+
+      const data = await response.json();
+      setReviewText(data.review);
+      
+      // Persist in LocalStorage
+      localStorage.setItem(`movie_review_${movieCd}`, data.review);
+      localStorage.setItem(`movie_keywords_${movieCd}`, JSON.stringify([k1, k2, k3]));
+    } catch (err: any) {
+      console.error("Generate review error:", err);
+      setGeneratorError(err.message || "감상평 생성 과정에서 외부 서버와 통신하지 못했거나 오류가 발생했습니다.");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   if (!movieCd) return null;
 
@@ -371,6 +445,144 @@ export default function MovieDetailModal({ movieCd, onClose }: MovieDetailModalP
 
                   </div>
 
+                </div>
+
+                {/* AI Review Generator Section */}
+                <div id="ai-review-generator" className="border-t border-slate-200 dark:border-slate-800 pt-6 mt-6">
+                  <div className="bg-gradient-to-r from-sky-500/5 via-indigo-500/5 to-purple-500/5 dark:from-sky-500/10 dark:via-indigo-500/10 dark:to-purple-500/10 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 space-y-5">
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-xl bg-sky-500/10 text-sky-650 dark:text-sky-400 mt-0.5">
+                        <Sparkles className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-base md:text-lg">
+                          🤖 AI 키워드 감상평 생성기
+                        </h4>
+                        <p className="text-xs text-slate-505 dark:text-slate-400 mt-1">
+                          기억에 남은 포인트, 감정, 분위기 등 3가지 자유 키워드를 조합하여 유려한 한 문단의 인공지능 감상평을 작성해보세요.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase font-mono pl-1">
+                          키워드 1
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={15}
+                          placeholder="예: 몰입도 넘치는"
+                          value={keyword1}
+                          onChange={(e) => setKeyword1(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-250 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-medium focus:ring-1 focus:ring-sky-500 focus:outline-none focus:border-sky-500 text-slate-850 dark:text-slate-100"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase font-mono pl-1">
+                          키워드 2
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={15}
+                          placeholder="예: 긴 여운의 결말"
+                          value={keyword2}
+                          onChange={(e) => setKeyword2(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-250 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-medium focus:ring-1 focus:ring-sky-500 focus:outline-none focus:border-sky-500 text-slate-850 dark:text-slate-100"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase font-mono pl-1">
+                          키워드 3
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={15}
+                          placeholder="예: 인생 명작"
+                          value={keyword3}
+                          onChange={(e) => setKeyword3(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-250 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-medium focus:ring-1 focus:ring-sky-500 focus:outline-none focus:border-sky-500 text-slate-850 dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    {generatorError && (
+                      <div className="p-3 text-xs font-semibold text-rose-500 bg-rose-500/10 rounded-xl border border-rose-550/25">
+                        ❌ {generatorError}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        id="generate-review-btn"
+                        disabled={generating}
+                        onClick={handleGenerateReview}
+                        className="px-5 py-2.5 rounded-xl text-white font-bold text-xs sm:text-sm cursor-pointer hover:scale-103 active:scale-97 transition-all flex items-center gap-2 shadow-md shadow-sky-500/10 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-sky-550 to-indigo-600"
+                      >
+                        {generating ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            AI 감상평 생성 중...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" /> 감상평 작성버튼
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Review text box */}
+                    {reviewText && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-150 dark:border-slate-800 space-y-3 relative shadow-inner"
+                      >
+                        <span className="absolute top-3 left-4 text-sky-500/15 dark:text-sky-400/10 text-4xl font-serif select-none">“</span>
+                        <div className="pl-6 pr-2 text-slate-805 dark:text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                          {reviewText}
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between pl-6 pt-3 border-t border-slate-200/55 dark:border-slate-800/40 gap-3">
+                          <span className="text-[10px] sm:text-xs text-slate-450 dark:text-slate-500 font-medium">
+                            💡 이 감상평 정보는 브라우저 보관소에 안전하게 자동 저장되었습니다.
+                          </span>
+                          <div className="flex items-center gap-2 self-end">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(reviewText);
+                                alert("작성된 AI 감상평이 클립보드에 무사히 복사되었습니다.");
+                              }}
+                              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-650 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                            >
+                              텍스트 복제
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("공들여 작성한 이 감상평을 삭제하시겠습니까?")) {
+                                  localStorage.removeItem(`movie_review_${movieCd}`);
+                                  localStorage.removeItem(`movie_keywords_${movieCd}`);
+                                  setReviewText("");
+                                  setKeyword1("");
+                                  setKeyword2("");
+                                  setKeyword3("");
+                                }
+                              }}
+                              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-rose-100 dark:border-rose-950/20 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/10 cursor-pointer transition-colors"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                  </div>
                 </div>
 
               </div>
