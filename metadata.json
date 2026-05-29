@@ -1,0 +1,6 @@
+{
+  "name": "Daily Box Office",
+  "description": "KOBIS 일일 박스오피스 순위 및 상세 영화 정보를 실시간으로 조회하고 다크모드/라이트모드로 감상할 수 있는 시네마 대시보드 웹 어플리케이션",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
